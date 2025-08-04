@@ -333,69 +333,40 @@ class EnhancedRetriever:
         formatted = []
         
         for i, result in enumerate(results):
-
-    # Extract text from multiple possible locations
-
+            # Extract text from multiple possible locations
             text = ''
-
             metadata = result.get('metadata', {})
-
-    # Try different ways to extract text
-
+            
+            # Try different ways to extract text
             if 'text' in metadata:
-
                 text = metadata['text']
-
             elif 'content' in metadata:
-
                 text = metadata['content']
-
             elif 'chunk_text' in metadata:
-
                 text = metadata['chunk_text']
-
             elif 'text' in result:
-
                 text = result['text']
-
             elif 'content' in result:
-
                 text = result['content']
-
             else:
-
-        # Debug: log what keys are available
-
+                # Debug: log what keys are available
                 print(f"🔍 DEBUG: No text found in result. Available keys: {list(result.keys())}")
-
                 if metadata:
-
                     print(f"🔍 DEBUG: Metadata keys: {list(metadata.keys())}")
-
                 text = str(metadata) if metadata else ""
-
+            
             formatted_result = {
-
                 'text': text,
-
                 'score': result.get('enhanced_score', result.get('score', 0)),
-
                 'rank': i + 1,
-
                 'metadata': metadata,
-
                 'relevance_signals': result.get('scoring_breakdown', {}),
-
                 'query_intent': query_analysis['intent'],
-
                 'query_domain': query_analysis['domain']
-
             }
-
             formatted.append(formatted_result)
-
+        
         return formatted
-
 
 # Global instance
 enhanced_retriever = EnhancedRetriever()
