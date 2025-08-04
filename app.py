@@ -747,14 +747,14 @@ async def health_check():
     
     # NO-CACHE mode - maximum accuracy embeddings with SPEED OPTIMIZATION
     health_status["components"]["embedding_system"] = {
-        "status": "SPEED_OPTIMIZED_NO_CACHE",
+        "status": "ACCURACY_OPTIMIZED_NO_CACHE",
         "mode": "FRESH_EMBEDDINGS_EVERY_TIME",
         "accuracy_boost": "ENABLED",
         "speed_optimizations": {
-            "chunk_retrieval": "5 chunks (reduced from 8)",
-            "context_size": "1800 chars (reduced from 2500)",
-            "llm_tokens": "120 max (optimized for GPT-4o)",
-            "api_timeout": "12 seconds",
+            "chunk_retrieval": "8 chunks (increased for maximum accuracy)",
+            "context_size": "4000 chars (increased for comprehensive coverage)",
+            "llm_tokens": "300 max (increased for detailed responses)",
+            "api_timeout": "20 seconds (increased for detailed processing)",
             "cache_size": "30 entries (reduced from 50)",
             "model": "GPT-4o (upgraded from GPT-4o-mini)"
         }
@@ -816,7 +816,7 @@ async def get_performance_stats(
         response = {
             "performance_status": "optimized_for_speed",
             "response_time_optimizations": {
-                "chunk_retrieval": "Reduced from 8 to 5 chunks",
+                "chunk_retrieval": "Increased to 8 chunks for maximum accuracy",
                 "context_size": "Reduced from 2500 to 1800 chars",
                 "llm_tokens": "Optimized 120 tokens for GPT-4o-mini",
                 "processing_chunks": "Using top 3 instead of 5",
@@ -939,66 +939,108 @@ async def process_questions_parallel_batch(questions: List[str]) -> List[str]:
     return all_answers
 
 async def process_single_question_fast(question: str) -> List[str]:
-    """Process a single question with speed optimization"""
+    """Process a single question with enhanced semantic search and comprehensive analysis"""
     try:
-        # Fast chunk retrieval with reduced count
+        # Enhanced chunk retrieval with more comprehensive semantic search
         relevant_chunks = await asyncio.get_event_loop().run_in_executor(
-            executor, retrieve_relevant_chunks, question, 3  # Only 3 chunks for speed
+            executor, retrieve_relevant_chunks, question, 12 # Increased to 12 chunks for comprehensive coverage
         )
-        
+
         if not relevant_chunks:
-            return ["Information not available in the provided document."]
-        
-        # Generate answer with speed optimization
+            return ["The semantic search did not find relevant information in the provided document. Please verify the question relates to the document content."]
+
+        # Generate comprehensive answer with enhanced analysis
         answer = await asyncio.get_event_loop().run_in_executor(
             executor, generate_answer_with_context_fast, question, relevant_chunks
         )
-        
+
         return [answer]
-        
+
     except Exception as e:
         logger.error(f"Error processing question '{question}': {str(e)}")
-        return ["Unable to process this question due to an error."]
+        return ["Unable to process this question due to a system error. Please try again."]
+
 
 def generate_answer_with_context_fast(question: str, chunks: List[dict]) -> str:
-    """Generate answer with speed-optimized parameters"""
+    """Generate answer with maximum accuracy using enhanced semantic search results"""
     try:
-        # Create minimal context for faster processing
+        # DEBUG: Log the chunks received in fast function
+        print(f"🔍 DEBUG FAST: Received {len(chunks)} chunks")
+        for i, chunk in enumerate(chunks[:5]): # Log first 5 chunks for better visibility
+            print(f"🔍 DEBUG FAST: Chunk {i}: score={chunk.get('score', 0)}, text_length={len(chunk.get('text', ''))}")
+            if chunk.get('text'):
+                print(f"🔍 DEBUG FAST: Text preview: {chunk['text'][:150]}...")
+            else:
+                print(f"🔍 DEBUG FAST: Chunk structure: {list(chunk.keys())}")
+        # Enhanced context creation with better chunk utilization
         context_parts = []
-        for chunk in chunks[:3]:  # Limit to 3 chunks
-            context_parts.append(chunk.get('content', ''))
-        
+        total_chars = 0
+        max_context_chars = 5000 # Increased for maximum accuracy
+        # Sort chunks by relevance score and use ALL available chunks
+        sorted_chunks = sorted(chunks, key=lambda x: x.get('score', 0), reverse=True)
+        for chunk in sorted_chunks: # Use all chunks, not just top 6
+            chunk_text = chunk.get('text', '').strip() # FIXED: Use 'text' field
+            if chunk_text and len(chunk_text) > 50: # Only meaningful chunks
+                if total_chars + len(chunk_text) > max_context_chars:
+                    # Smart truncation - keep most relevant parts
+                    remaining_chars = max_context_chars - total_chars
+                    if remaining_chars > 200:
+                        truncated_text = chunk_text[:remaining_chars-10] + "..."
+                        context_parts.append(f"[Relevance: {chunk.get('score', 0):.3f}] {truncated_text}")
+                        break
+                else:
+                    context_parts.append(f"[Relevance: {chunk.get('score', 0):.3f}] {chunk_text}")
+                total_chars += len(chunk_text)
         context = "\n\n".join(context_parts)
-        if len(context) > 1500:  # Reduced context limit
-            context = context[:1500] + "..."
-        
-        # Speed-optimized prompt
-        prompt = f"""Based on the document content below, provide a concise answer to the question.
+        # DEBUG: Log enhanced context details
+        print(f"🔍 DEBUG FAST: Enhanced context length: {len(context)} chars")
+        print(f"🔍 DEBUG FAST: Context preview: {context[:300]}...")
+        # Enhanced prompt with specific insurance domain instructions for concise answers
+        prompt = f"""You are an expert insurance policy analyst. Analyze the following insurance policy content and provide a concise, accurate answer.
 
-Document Content:
+INSURANCE POLICY CONTENT:
+
 {context}
 
-Question: {question}
+QUESTION: {question}
 
-Answer (be specific and concise):"""
-        
-        # Fast OpenAI call
+CONCISE ANALYSIS INSTRUCTIONS:
+
+1. Extract essential facts: amounts, percentages, timeframes only
+
+2. Identify key conditions, exclusions, and exceptions
+
+3. Quote exact policy language for critical details only
+
+4. Provide complete information in maximum 2 sentences
+
+RESPONSE FORMAT:
+
+- Maximum 2 sentences
+
+- Include all essential amounts/timeframes/conditions
+
+- Quote key policy sections in quotation marks when necessary
+
+- Be direct and specific, avoid lengthy explanations
+
+Answer:"""
+        # Enhanced OpenAI call with optimized parameters for concise insurance analysis
         response = openai_client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are a helpful assistant. Provide concise, accurate answers based on the document content."},
+                {"role": "system", "content": "You are a professional insurance policy analyst. Provide concise, accurate answers with essential policy details in maximum 2 sentences. Include exact amounts, timeframes, and key conditions. Be precise and direct while covering all critical information."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=100,  # Increased for GPT-4o's better efficiency
-            temperature=0.1,
-            timeout=8  # Reduced timeout for GPT-4o's faster response
+            max_tokens=150, # Reduced for concise responses
+            temperature=0.0, # Zero temperature for maximum accuracy
+            timeout=15 # Reduced timeout for faster responses
         )
-        
         return response.choices[0].message.content.strip()
-        
     except Exception as e:
-        logger.error(f"Error generating fast answer: {str(e)}")
-        return "Unable to generate answer due to processing error."
+        logger.error(f"Error generating enhanced answer: {str(e)}")
+        return "Unable to generate comprehensive answer due to processing error. Please try again."
+        
 
 if __name__ == "__main__":
     import uvicorn
